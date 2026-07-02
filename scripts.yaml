@@ -1,0 +1,135 @@
+testrook:
+  sequence:
+  - action: rest_command.rook_task_webhook
+    data: {}
+    response_variable: fries
+  alias: testrook
+  description: ''
+rook_wake:
+  sequence:
+  - action: rest_command.rook_agent_wake_webhook
+    data:
+      text: '{{ text }}'
+      mode: '{{ mode }}'
+    response_variable: wake response
+  alias: 'Rook: Wake'
+  description: 'Wake Rook either immediately or at the next heartbeat, taking action
+    in the main (unbound) session.
+
+
+    Explicitly ask for a response via a channel if required.'
+  fields:
+    text:
+      selector:
+        text:
+      name: instruction
+      required: true
+    mode:
+      selector:
+        select:
+          options:
+          - now
+          - next-heartbeat
+      name: mode
+      required: true
+  mode: queued
+  max: 10
+test_rook_wake:
+  sequence:
+  - action: script.rook_wake
+    metadata: {}
+    data:
+      text: Hey Rook! Reply to this in ALL CAPS with a magic word.
+      mode: now
+    response_variable: fries
+  alias: Test Rook Wake
+  description: ''
+rook_agent_turn:
+  sequence:
+  - action: rest_command.rook_agent_isolated_webhook
+    metadata: {}
+    data:
+      message: '{{ message }}'
+      name: '{{ name }}'
+      wakeMode: '{{ wakeMode }}'
+      timeoutSeconds: '{{ timeoutSeconds }}'
+      to: ' {{ to }}'
+      model: ' {{ model }}'
+      channel: ' {{ channel }}'
+      fallbacks: '{{ fallbacks }}'
+      thinking: '{{ thinking }}'
+      agentId: '{{ agentId }}'
+    response_variable: response
+  fields:
+    message:
+      selector:
+        text:
+      name: message
+      required: true
+    name:
+      selector:
+        text:
+      name: name
+    wakeMode:
+      selector:
+        text:
+      name: wake mode
+    timeoutSeconds:
+      selector:
+        number:
+          min: 1
+          max: 300
+          step: 5
+      default: 60
+      name: timeout
+    to:
+      selector:
+        text:
+      name: destination session
+      default: '70379987'
+    model:
+      selector:
+        select:
+          options:
+          - syn:large:vision
+          - syn:large:text
+          - syn:small:vision
+          - syn:small:text
+      default: syn:large:text
+    falllbacks:
+      selector:
+        select:
+          multiple: true
+          options:
+          - syn:large:vision
+          - syn:large:text
+          - syn:small:vision
+          - syn:small:text
+    thinking:
+      selector:
+        boolean: {}
+      name: thinking
+    agentid:
+      selector:
+        text:
+      name: agentId
+    channel:
+      selector:
+        text: {}
+      default: telegram
+  alias: 'Rook: Agent Turn'
+  description: Run an isolated turn against a specific agent
+test_rook_agent_turn:
+  sequence:
+  - action: script.rook_agent_turn
+    metadata: {}
+    data:
+      timeoutSeconds: 60
+      to: '70379987'
+      channel: telegram
+      message: Hey Rook! Tell me a dirty joke about mustard
+      name: Joke
+      model: syn:large:vision
+    response_variable: werk
+  alias: 'Test Rook: Agent Turn'
+  description: ''

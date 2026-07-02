@@ -1,0 +1,54 @@
+# Loads default set of integrations. Do not remove.
+default_config:
+
+# Load frontend themes from the themes folder
+frontend:
+  themes: !include_dir_merge_named themes
+
+automation: !include automations.yaml
+script: !include scripts.yaml
+scene: !include scenes.yaml
+
+# Load packages
+homeassistant:
+  packages: !include_dir_named packages/
+
+# Predefined rest commands
+rest_command:
+  rook_task_webhook:
+    url: "https://rook.tail65e0ac.ts.net/plugins/webhooks/homeassistant"
+    method: POST
+    content_type: "application/json"
+    headers:
+      Authorization: !secret rook_task_webhook_bearer
+    payload: '{"action":"list_flows"}'
+
+  rook_agent_wake_webhook:
+    url: "https://rook.tail65e0ac.ts.net/hooks/wake"
+    method: POST
+    content_type: "application/json"
+    headers:
+      Authorization: !secret rook_agent_webhook_bearer
+    payload: >-
+      {{ {"text": text, 
+          "mode": (mode if mode in ['now','next-heartbeat'] else 'now')} | to_json }}
+
+  rook_agent_isolated_webhook:
+    url: "https://rook.tail65e0ac.ts.net/hooks/agent"
+    method: POST
+    content_type: "application/json"
+    headers:
+      Authorization: !secret rook_agent_webhook_bearer
+    payload: >-
+      {%- set body = {"message": message} -%}
+      {%- if name           is defined and name           != '' %}{% set body = dict(body, name=name) %}{% endif -%}
+      {%- if agentId        is defined and agentId        != '' %}{% set body = dict(body, agentId=agentId) %}{% endif -%}
+      {%- if wakeMode       is defined and wakeMode       != '' %}{% set body = dict(body, wakeMode=wakeMode) %}{% endif -%}
+      {%- if deliver        is defined and deliver        != '' %}{% set body = dict(body, deliver=deliver) %}{% endif -%}
+      {%- if channel        is defined and channel        != '' %}{% set body = dict(body, channel=channel) %}{% endif -%}
+      {%- if to             is defined and to             != '' %}{% set body = dict(body, to=to | string) %}{% endif -%}
+      {%- if model          is defined and model          != '' %}{% set body = dict(body, model=model) %}{% endif -%}
+      {%- if fallbacks      is defined and fallbacks      != '' %}{% set body = dict(body, fallbacks=fallbacks) %}{% endif -%}
+      {%- if thinking       is defined and thinking       != '' %}{% set body = dict(body, thinking=thinking) %}{% endif -%}
+      {%- if timeoutSeconds is defined and timeoutSeconds != '' %}{% set body = dict(body, timeoutSeconds=timeoutSeconds) %}{% endif -%}
+      {{ body | to_json }}

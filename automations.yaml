@@ -1,0 +1,28 @@
+- id: '1782114800132'
+  alias: Turn on Den after Dark
+  description: ''
+  triggers:
+  - trigger: occupancy.detected
+    target:
+      entity_id: binary_sensor.sonoff_presence_1_occupancy
+    options:
+      behavior: each
+      for:
+        hours: 0
+        minutes: 0
+        seconds: 20
+  conditions:
+  - condition: sun
+    after: sunset
+    after_offset:
+      hours: 0
+      minutes: -15
+      seconds: 0
+  actions:
+  - action: light.turn_on
+    metadata: {}
+    target:
+      area_id: den
+    data:
+      brightness_pct: 100
+  mode: single
