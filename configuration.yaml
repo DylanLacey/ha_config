@@ -30,7 +30,7 @@ rest_command:
     headers:
       Authorization: !secret rook_agent_webhook_bearer
     payload: >-
-      {{ {"text": text, 
+      {{ {"text": text,
           "mode": (mode if mode in ['now','next-heartbeat'] else 'now')} | to_json }}
 
   rook_agent_isolated_webhook:

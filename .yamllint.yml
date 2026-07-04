@@ -1,0 +1,34 @@
+---
+extends: default
+
+ignore: |
+  blueprints/
+
+rules:
+  # HA uses sequences at parent indentation level, e.g.:
+  #   triggers:
+  #   - trigger: foo   ← not indented past `triggers:`
+  indentation:
+    spaces: 2
+    indent-sequences: whatever
+
+  # HA automations get long action/condition chains
+  line-length:
+    max: 120
+    level: warning
+
+  # Quoting URLs and values is fine
+  quoted-strings: disable
+
+  # !secret, !include, !include_dir_* are HA custom tags
+  truthy:
+    allowed-values: ["true", "false", "yes", "no", "on", "off"]
+    check-keys: false
+
+  # top-level keys like `default_config:` with no value
+  empty-values:
+    forbid-in-block-mappings: false
+    forbid-in-flow-mappings: true
+
+  # HA files often start with a list (automations.yaml)
+  document-start: disable

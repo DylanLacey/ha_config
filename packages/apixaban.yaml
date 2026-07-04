@@ -5,7 +5,7 @@ apixaban_reminder_package:
     - triggers:
         - trigger: event
           event_type: dose_taken
-          event_data: 
+          event_data:
             action: apixaban
       sensor:
         - name: Apixaban Dose Log
@@ -16,7 +16,7 @@ apixaban_reminder_package:
               {{ (this.attributes.entries | default([], true)
                   + [now().isoformat(timespec='seconds')])[-50:] }}
 
-  automation: 
+  automation:
   - id: '1782114973139'
     alias: Turn Den Off once unoccupied
     description: ''
