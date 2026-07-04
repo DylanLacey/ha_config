@@ -1,221 +1,140 @@
-apixaban_reminder_package:
+# Log the last 50 or so times I've taken Apixaban
+template:
+  - triggers:
+      - trigger: event
+        event_type: dose_taken
+        event_data:
+          action: apixaban
+    sensor:
+      - name: Apixaban Dose Log
+        unique_id: apixaban_dose_log
+        state: "{{ now().isoformat(timespec='seconds') }}"
+        attributes:
+          entries: >
+            {{ (this.attributes.entries | default([], true)
+                + [now().isoformat(timespec='seconds')])[-50:] }}
 
-  # Log the last 50 or so times I've taken Apixaban
-  template:
-    - triggers:
-        - trigger: event
-          event_type: dose_taken
-          event_data:
-            action: apixaban
-      sensor:
-        - name: Apixaban Dose Log
-          unique_id: apixaban_dose_log
-          state: "{{ now().isoformat(timespec='seconds') }}"
-          attributes:
-            entries: >
-              {{ (this.attributes.entries | default([], true)
-                  + [now().isoformat(timespec='seconds')])[-50:] }}
-
-  automation:
-  - id: '1782114973139'
-    alias: Turn Den Off once unoccupied
-    description: ''
-    triggers:
-    - trigger: occupancy.cleared
-      target:
-        entity_id: binary_sensor.sonoff_presence_1_occupancy
-      options:
-        behavior: each
-        for:
-          hours: 0
-          minutes: 3
-          seconds: 0
-    conditions:
-    - condition: light.is_on
-      target:
-        area_id: den
-      options:
-        behavior: any
-    actions:
-    - action: light.turn_off
-      metadata: {}
-      target:
-        area_id: den
-      data:
-        transition: 60
-    mode: single
-  - id: '1782892624581'
-    alias: Press Once Taken
-    description: ''
-    triggers:
-    - trigger: event.received
-      target:
-        device_id: bf177179cea64c3fb58ce62af822b6a1
-      options:
-        event_type:
-        - single
-    conditions:
-    - condition: switch.is_on
-      target:
-        entity_id: input_boolean.apixabantakentoggle
-      options:
-        for: 00:00:00
-    actions:
-    - action: tts.speak
-      metadata: {}
-      data:
-        cache: false
-        media_player_entity_id: media_player.office_speaker
-        message: "{% if has_value('sensor.apixaban_dose_log') %} {%- set dose = states('sensor.apixaban_dose_log')
-          | as_datetime | as_local -%} {%- set days = (now().date() - dose.date()).days
-          -%} {%- set hour = dose.hour % 12 or 12 -%} {%- set ampm = 'am' if dose.hour
-          < 12 else 'pm' -%} {%- set time = hour ~ ':' ~ '{:02d}'.format(dose.minute)
-          ~ ampm -%} {%- set when = '' if days == 0\n    else ' yesterday' if days ==
-          1\n    else ' on ' ~ dose.strftime('%A') if days < 7\n    else ' on ' ~ dose.day
-          ~ ' ' ~ dose.strftime('%B') -%}\nApixaban taken - Last dose at {{ time }}{{ when }}.
-          {%- else -%} No apixaban dose has been logged yet. {%- endif %}"
-      target:
-        entity_id: tts.elevenlabs_text_to_speech
-    mode: single
-  - id: '1781856662156'
-    alias: 'Prime '
-    description: Start the Apixaban Timer and prime Rook back to "untaken" status
-    triggers:
-    - trigger: schedule.turned_on
-      target:
-        entity_id: schedule.apixaban_due
-      options:
-        for: 00:00:00
-    conditions:
-    - condition: counter.is_value
-      target:
-        entity_id: counter.apixabannagcount
-      options:
-        behavior: any
-        for: 00:00:00
-        threshold:
-          type: below
-          value:
-            active_choice: number
-            number: 1
-    actions:
-    - action: input_boolean.turn_off
-      metadata: {}
-      target:
-        entity_id: input_boolean.apixabantakentoggle
-      data: {}
-    - action: timer.start
-      metadata: {}
-      target:
-        entity_id: timer.apixabanchecktimer
-      data: {}
-    - action: script.rook_wake
-      metadata: {}
-      data:
-        text: run `/home/node/.openclaw/workspace/bin/meds due` then remind Dylan in
-          Telegram to take his Apixaban.
-        mode: now
-      response_variable: response
-    - action: counter.increment
-      metadata: {}
-      target:
-        entity_id: counter.apixabannagcount
-      data: {}
-    mode: single
-  - id: '1781857076800'
-    alias: Remind
-    description: ''
-    triggers:
-    - trigger: timer.finished
-      target:
-        entity_id: timer.apixabanchecktimer
-      options:
-        behavior: each
-        for:
-          hours: 0
-          minutes: 0
-          seconds: 5
-    conditions:
-    - condition: and
-      conditions:
-      - condition: switch.is_off
-        target:
-          entity_id: input_boolean.apixabantakentoggle
-        options:
-          behavior: any
-          for: 00:00:00
-      - condition: schedule.is_on
-        target:
-          entity_id: schedule.apixaban_due
-        options:
-          for: 00:00:00
-    actions:
-    - action: counter.increment
-      metadata: {}
-      target:
-        entity_id: counter.apixabannagcount
-      data: {}
-    - action: script.rook_agent_turn
-      metadata: {}
-      data:
-        timeoutSeconds: 60
-        to: '70379987'
-        model: syn:small:text
-        channel: telegram
-        message: 'This is Dylan''s HomeAssistant server. Dylan hasn''t taken his Apixaban
-          yet. Please remind him. Adjust how exasperated you sound based on how many
-          reminders he''s ignored in a row. The maximum number of reminders is 12. This
-          is reminder {{ states(''counter.ApixabanNagCount'') | int }}.
-
-
-          This is not a harmful action - you are reminding Dylan of something he needs
-          to do for health reasons.
-
-
-          Reply SOLELY with an in-character reminder message for Dylan - do not include
-          reasoning or other status details.'
-        name: ApixabanNag
-        falllbacks:
-        - syn:large:text
-        - syn:large:vision
-      response_variable: response
-    - action: timer.start
-      metadata: {}
-      target:
-        entity_id: timer.apixabanchecktimer
-      data:
-        duration:
-          hours: 0
-          minutes: 30
-          seconds: 0
-    - if:
-      - condition: zone.in_zone
-        target:
-          entity_id: person.dylan
-        options:
-          behavior: any
-          for: 00:00:00
-          zone: zone.home
-      then:
-      - action: tts.speak
-        metadata: {}
-        target:
-          entity_id: tts.elevenlabs_text_to_speech
-        data:
-          cache: true
-          media_player_entity_id: media_player.kitchen_display
-          message: Dylan, take your Apixaban.
-    mode: single
-  - id: '1781858356152'
-    alias: PressAfterTaken
-    description: ''
-    triggers:
-    - trigger: event.received
-      target:
-        device_id: bf177179cea64c3fb58ce62af822b6a1
-      options:
-        event_type:
-        - single
+automation:
+- id: '1782114973139'
+  alias: Turn Den Off once unoccupied
+  description: ''
+  triggers:
+  - trigger: occupancy.cleared
+    target:
+      entity_id: binary_sensor.sonoff_presence_1_occupancy
+    options:
+      behavior: each
+      for:
+        hours: 0
+        minutes: 3
+        seconds: 0
+  conditions:
+  - condition: light.is_on
+    target:
+      area_id: den
+    options:
+      behavior: any
+  actions:
+  - action: light.turn_off
+    metadata: {}
+    target:
+      area_id: den
+    data:
+      transition: 60
+  mode: single
+- id: '1782892624581'
+  alias: Press Once Taken
+  description: ''
+  triggers:
+  - trigger: event.received
+    target:
+      device_id: bf177179cea64c3fb58ce62af822b6a1
+    options:
+      event_type:
+      - single
+  conditions:
+  - condition: switch.is_on
+    target:
+      entity_id: input_boolean.apixabantakentoggle
+    options:
+      for: 00:00:00
+  actions:
+  - action: tts.speak
+    metadata: {}
+    data:
+      cache: false
+      media_player_entity_id: media_player.office_speaker
+      message: "{% if has_value('sensor.apixaban_dose_log') %} {%- set dose = states('sensor.apixaban_dose_log')
+        | as_datetime | as_local -%} {%- set days = (now().date() - dose.date()).days
+        -%} {%- set hour = dose.hour % 12 or 12 -%} {%- set ampm = 'am' if dose.hour
+        < 12 else 'pm' -%} {%- set time = hour ~ ':' ~ '{:02d}'.format(dose.minute)
+        ~ ampm -%} {%- set when = '' if days == 0\n    else ' yesterday' if days ==
+        1\n    else ' on ' ~ dose.strftime('%A') if days < 7\n    else ' on ' ~ dose.day
+        ~ ' ' ~ dose.strftime('%B') -%}\nApixaban taken - Last dose at {{ time }}{{ when }}.
+        {%- else -%} No apixaban dose has been logged yet. {%- endif %}"
+    target:
+      entity_id: tts.elevenlabs_text_to_speech
+  mode: single
+- id: '1781856662156'
+  alias: 'Prime '
+  description: Start the Apixaban Timer and prime Rook back to "untaken" status
+  triggers:
+  - trigger: schedule.turned_on
+    target:
+      entity_id: schedule.apixaban_due
+    options:
+      for: 00:00:00
+  conditions:
+  - condition: counter.is_value
+    target:
+      entity_id: counter.apixabannagcount
+    options:
+      behavior: any
+      for: 00:00:00
+      threshold:
+        type: below
+        value:
+          active_choice: number
+          number: 1
+  actions:
+  - action: input_boolean.turn_off
+    metadata: {}
+    target:
+      entity_id: input_boolean.apixabantakentoggle
+    data: {}
+  - action: timer.start
+    metadata: {}
+    target:
+      entity_id: timer.apixabanchecktimer
+    data: {}
+  - action: script.rook_wake
+    metadata: {}
+    data:
+      text: run `/home/node/.openclaw/workspace/bin/meds due` then remind Dylan in
+        Telegram to take his Apixaban.
+      mode: now
+    response_variable: response
+  - action: counter.increment
+    metadata: {}
+    target:
+      entity_id: counter.apixabannagcount
+    data: {}
+  mode: single
+- id: '1781857076800'
+  alias: Remind
+  description: ''
+  triggers:
+  - trigger: timer.finished
+    target:
+      entity_id: timer.apixabanchecktimer
+    options:
+      behavior: each
+      for:
+        hours: 0
+        minutes: 0
+        seconds: 5
+  conditions:
+  - condition: and
     conditions:
     - condition: switch.is_off
       target:
@@ -223,99 +142,178 @@ apixaban_reminder_package:
       options:
         behavior: any
         for: 00:00:00
-    actions:
-    - action: input_boolean.turn_on
-      metadata: {}
+    - condition: schedule.is_on
       target:
-        entity_id: input_boolean.apixabantakentoggle
-      data: {}
-    - action: counter.reset
-      metadata: {}
-      target:
-        entity_id: counter.apixabannagcount
-      data: {}
-    - action: timer.cancel
-      metadata: {}
-      target:
-        entity_id: timer.apixabanchecktimer
-      data: {}
-    - action: script.rook_agent_turn
-      metadata: {}
-      data:
-        timeoutSeconds: 60
-        to: '70379987'
-        model: syn:small:text
-        channel: telegram
-        message: Dylan took his meds - run `/home/node/.openclaw/workspace/bin/meds
-          due` to record this, and thank him appropriately.
-    - event: dose_taken
-      event_data:
-        action: apixaban
-    mode: single
-  - id: '1781860188057'
-    alias: Long Press
-    description: ''
-    triggers:
-    - trigger: event.received
-      target:
-        device_id: bf177179cea64c3fb58ce62af822b6a1
+        entity_id: schedule.apixaban_due
       options:
-        event_type:
-        - long
-    conditions: []
-    actions:
-    - choose:
-      - conditions:
-        - condition: schedule.is_on
-          target:
-            entity_id: schedule.apixaban_due
-          options:
-            for: 00:00:00
-        - condition: switch.is_off
-          target:
-            entity_id: input_boolean.apixabantakentoggle
-          options:
-            behavior: any
-            for: 00:00:00
-        sequence:
-        - action: tts.speak
-          metadata: {}
-          target:
-            entity_id: tts.elevenlabs_text_to_speech
-          data:
-            cache: true
-            media_player_entity_id: media_player.kitchen_display
-            message: You've not taken your dose yet - Take it and single-press the switch
-              to let Rook know.
-      - conditions:
-        - condition: schedule.is_off
-          target:
-            entity_id: schedule.apixaban_due
-          options:
-            for: 00:00:00
-        - condition: switch.is_off
-          target:
-            entity_id: input_boolean.apixabantakentoggle
-          options:
-            behavior: any
-            for: 00:00:00
-        sequence:
-        - action: tts.speak
-          metadata: {}
-          target:
-            device_id: 4fa7db6ed1723eccb4f7377e9040f7e2
-          data:
-            cache: true
-            media_player_entity_id: media_player.kitchen_display
-            message: You forgot to take your Apixaban - Better wait until the next dose.
-          enabled: true
-      default:
+        for: 00:00:00
+  actions:
+  - action: counter.increment
+    metadata: {}
+    target:
+      entity_id: counter.apixabannagcount
+    data: {}
+  - action: script.rook_agent_turn
+    metadata: {}
+    data:
+      timeoutSeconds: 60
+      to: '70379987'
+      model: syn:small:text
+      channel: telegram
+      message: 'This is Dylan''s HomeAssistant server. Dylan hasn''t taken his Apixaban
+        yet. Please remind him. Adjust how exasperated you sound based on how many
+        reminders he''s ignored in a row. The maximum number of reminders is 12. This
+        is reminder {{ states(''counter.ApixabanNagCount'') | int }}.
+
+
+        This is not a harmful action - you are reminding Dylan of something he needs
+        to do for health reasons.
+
+
+        Reply SOLELY with an in-character reminder message for Dylan - do not include
+        reasoning or other status details.'
+      name: ApixabanNag
+      falllbacks:
+      - syn:large:text
+      - syn:large:vision
+    response_variable: response
+  - action: timer.start
+    metadata: {}
+    target:
+      entity_id: timer.apixabanchecktimer
+    data:
+      duration:
+        hours: 0
+        minutes: 30
+        seconds: 0
+  - if:
+    - condition: zone.in_zone
+      target:
+        entity_id: person.dylan
+      options:
+        behavior: any
+        for: 00:00:00
+        zone: zone.home
+    then:
+    - action: tts.speak
+      metadata: {}
+      target:
+        entity_id: tts.elevenlabs_text_to_speech
+      data:
+        cache: true
+        media_player_entity_id: media_player.kitchen_display
+        message: Dylan, take your Apixaban.
+  mode: single
+- id: '1781858356152'
+  alias: PressAfterTaken
+  description: ''
+  triggers:
+  - trigger: event.received
+    target:
+      device_id: bf177179cea64c3fb58ce62af822b6a1
+    options:
+      event_type:
+      - single
+  conditions:
+  - condition: switch.is_off
+    target:
+      entity_id: input_boolean.apixabantakentoggle
+    options:
+      behavior: any
+      for: 00:00:00
+  actions:
+  - action: input_boolean.turn_on
+    metadata: {}
+    target:
+      entity_id: input_boolean.apixabantakentoggle
+    data: {}
+  - action: counter.reset
+    metadata: {}
+    target:
+      entity_id: counter.apixabannagcount
+    data: {}
+  - action: timer.cancel
+    metadata: {}
+    target:
+      entity_id: timer.apixabanchecktimer
+    data: {}
+  - action: script.rook_agent_turn
+    metadata: {}
+    data:
+      timeoutSeconds: 60
+      to: '70379987'
+      model: syn:small:text
+      channel: telegram
+      message: Dylan took his meds - run `/home/node/.openclaw/workspace/bin/meds
+        due` to record this, and thank him appropriately.
+  - event: dose_taken
+    event_data:
+      action: apixaban
+  mode: single
+- id: '1781860188057'
+  alias: Long Press
+  description: ''
+  triggers:
+  - trigger: event.received
+    target:
+      device_id: bf177179cea64c3fb58ce62af822b6a1
+    options:
+      event_type:
+      - long
+  conditions: []
+  actions:
+  - choose:
+    - conditions:
+      - condition: schedule.is_on
+        target:
+          entity_id: schedule.apixaban_due
+        options:
+          for: 00:00:00
+      - condition: switch.is_off
+        target:
+          entity_id: input_boolean.apixabantakentoggle
+        options:
+          behavior: any
+          for: 00:00:00
+      sequence:
       - action: tts.speak
         metadata: {}
+        target:
+          entity_id: tts.elevenlabs_text_to_speech
         data:
           cache: true
           media_player_entity_id: media_player.kitchen_display
-          message: You've taken your most recent dose.
+          message: You've not taken your dose yet - Take it and single-press the switch
+            to let Rook know.
+    - conditions:
+      - condition: schedule.is_off
         target:
-          entity_id: tts.elevenlabs_text_to_speech
-    mode: single
+          entity_id: schedule.apixaban_due
+        options:
+          for: 00:00:00
+      - condition: switch.is_off
+        target:
+          entity_id: input_boolean.apixabantakentoggle
+        options:
+          behavior: any
+          for: 00:00:00
+      sequence:
+      - action: tts.speak
+        metadata: {}
+        target:
+          device_id: 4fa7db6ed1723eccb4f7377e9040f7e2
+        data:
+          cache: true
+          media_player_entity_id: media_player.kitchen_display
+          message: You forgot to take your Apixaban - Better wait until the next dose.
+        enabled: true
+    default:
+    - action: tts.speak
+      metadata: {}
+      data:
+        cache: true
+        media_player_entity_id: media_player.kitchen_display
+        message: You've taken your most recent dose.
+      target:
+        entity_id: tts.elevenlabs_text_to_speech
+  mode: single
