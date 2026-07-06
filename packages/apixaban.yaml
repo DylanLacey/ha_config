@@ -79,11 +79,9 @@ automation:
   alias: 'Prime '
   description: Start the Apixaban Timer and prime Rook back to "untaken" status
   triggers:
-  - trigger: schedule.turned_on
-    target:
-      entity_id: schedule.apixaban_due
-    options:
-      for: 00:00:00
+  - trigger: state
+    entity_id: schedule.apixaban_due
+    to: "on"
   conditions:
   - condition: counter.is_value
     target:
