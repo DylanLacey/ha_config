@@ -70,35 +70,35 @@ automation:
             entity_id: schedule.apixaban_due
           options:
             for: 00:00:00
-          sequence:
-            - action: input_boolean.turn_on
-              metadata: {}
-              target:
-                entity_id: input_boolean.apixabantakentoggle
-              data: {}
-            - action: counter.reset
-              metadata: {}
-              target:
-                entity_id: counter.apixabannagcount
-              data: {}
-            - action: timer.cancel
-              metadata: {}
-              target:
-                entity_id: timer.apixabanchecktimer
-              data: {}
-            - action: script.rook_agent_turn
-              metadata: {}
-              data:
-                timeoutSeconds: 60
-                to: '70379987'
-                model: syn:small:text
-                channel: telegram
-                message: Dylan took his meds - run `/home/node/.openclaw/workspace/bin/meds
-                  due` to record this, and thank him appropriately.
-            - event: dose_taken
-              event_data:
-                action: apixaban
-              mode: single
+      sequence:
+        - action: input_boolean.turn_on
+          metadata: {}
+          target:
+            entity_id: input_boolean.apixabantakentoggle
+          data: {}
+        - action: counter.reset
+          metadata: {}
+          target:
+            entity_id: counter.apixabannagcount
+          data: {}
+        - action: timer.cancel
+          metadata: {}
+          target:
+            entity_id: timer.apixabanchecktimer
+          data: {}
+        - action: script.rook_agent_turn
+          metadata: {}
+          data:
+            timeoutSeconds: 60
+            to: '70379987'
+            model: syn:small:text
+            channel: telegram
+            message: Dylan took his meds - run `/home/node/.openclaw/workspace/bin/meds
+              due` to record this, and thank him appropriately.
+        - event: dose_taken
+          event_data:
+            action: apixaban
+          mode: single
 
   # Apixaban already taken or not due
   default: 
