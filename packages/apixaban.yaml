@@ -105,7 +105,7 @@ automation:
       metadata: {}
       data:
         cache: false
-        media_player_entity_id: media_player.office_speaker
+        media_player_entity_id: media_player.kitchen_display
         message: "{% if has_value('sensor.apixaban_dose_log') %} {%- set dose = states('sensor.apixaban_dose_log')
           | as_datetime | as_local -%} {%- set days = (now().date() - dose.date()).days
           -%} {%- set hour = dose.hour % 12 or 12 -%} {%- set ampm = 'am' if dose.hour
