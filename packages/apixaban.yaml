@@ -98,7 +98,6 @@ automation:
         - event: dose_taken
           event_data:
             action: apixaban
-          mode: single
 
   # Apixaban already taken or not due
   default: 
@@ -117,7 +116,7 @@ automation:
           {%- else -%} No apixaban dose has been logged yet. {%- endif %}"
       target:
         entity_id: tts.elevenlabs_text_to_speech
-      mode: single
+  mode: single
 
 - id: '1781856662156'
   alias: 'Prime '
